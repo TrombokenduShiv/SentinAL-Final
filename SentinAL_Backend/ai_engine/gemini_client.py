@@ -1,63 +1,89 @@
 import os
 import json
-import google.genai as genai
+import google.generativeai as genai
 from dotenv import load_dotenv
 from .prompts import CONTRACT_PARSER_SYSTEM_PROMPT, LEGAL_NOTICE_SYSTEM_PROMPT
-
-
 
 # Load environment variables
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 
-if not api_key:
-    raise ValueError("GEMINI_API_KEY not found in .env file")
+# --- THE SAFETY NET: Hardcoded Legal Template ---
+FALLBACK_NOTICE_TEMPLATE = """
+OFFICIAL DMCA CEASE & DESIST NOTICE
+--------------------------------------------------
+DATE: {date}
+TO: Administrator of {url}
+FROM: SentinAL Enforcement (On behalf of Rights Holder)
 
-# Initialize the Client and Model
-client = genai.Client(api_key=api_key)
-MODEL_NAME = 'gemini-pro'
+RE: UNAUTHORIZED DISTRIBUTION OF COPYRIGHTED CONTENT - "{asset}"
 
+To Whom It May Concern,
 
+We are the authorized enforcement agents for the copyright holder of the motion picture "{asset}".
+It has come to our attention that your website/server is illegally hosting, distributing, or facilitating the unauthorized streaming of this content in violation of international copyright laws.
+
+VIOLATION DETAILS:
+- Asset: {asset}
+- Detected URL: {url}
+- Server Location: {location}
+- Evidence Hash: {evidence_hash}
+- Violation Type: {breach_type}
+
+This usage constitutes a serious breach of our client's exclusive rights. 
+We hereby demand that you expeditiously remove or disable access to the material claimed to be infringing.
+
+Failure to act immediately will result in further legal action, including but not limited to server takedowns and ISP blacklisting.
+
+This notice is generated automatically by SentinAL and is court-admissible evidence.
+
+Signed,
+SentinAL Enforcement Engine
+"""
+
+if api_key:
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    model = None
+    print("[-] WARNING: No GEMINI_API_KEY found. Running in Offline Fallback Mode.")
 
 def parse_contract_pdf(pdf_text_content):
-    """
-    Sends raw text from a PDF to Gemini to extract structured JSON.
-    """
+    if not model:
+        return None
     try:
-        # Construct the Prompt
         full_prompt = f"{CONTRACT_PARSER_SYSTEM_PROMPT}\n\nCONTRACT TEXT:\n{pdf_text_content}"
-        response = client.models.generate_content(model=MODEL_NAME, contents=full_prompt)
-        raw_text = response.text if hasattr(response, 'text') else response.candidates[0].text
-
-        # Clean up Markdown code blocks if Gemini adds them
-        if "```json" in raw_text:
-            raw_text = raw_text.replace("```json", "").replace("```", "")
+        response = model.generate_content(full_prompt)
+        raw_text = response.text.replace("```json", "").replace("```", "")
         return json.loads(raw_text)
     except Exception as e:
-        import traceback
         print(f"Error parsing contract: {e}")
-        traceback.print_exc()
         return None
 
 def draft_legal_notice(violation_details):
     """
-    Generates a Cease & Desist letter based on violation data.
+    Tries to use AI. If it fails, uses the Hardcoded Template (The "Distraction").
     """
     try:
-        # Construct the Prompt
+        if not model:
+            raise Exception("No API Key configured")
+
+        # 1. Try Live AI Generation
         details_str = json.dumps(violation_details, indent=2)
         full_prompt = f"{LEGAL_NOTICE_SYSTEM_PROMPT}\n\nVIOLATION DETAILS:\n{details_str}"
-        response = client.models.generate_content(model=MODEL_NAME, contents=full_prompt)
-        if hasattr(response, 'text'):
-            return response.text
-        elif hasattr(response, 'candidates') and response.candidates:
-            return response.candidates[0].text
-        else:
-            print("Gemini API returned no usable text or candidates.")
-            print(f"Raw response: {response}")
-            return "NOTICE GENERATION FAILED due to AI Error."
+        response = model.generate_content(full_prompt)
+        return response.text
+
     except Exception as e:
-        import traceback
-        print(f"Error drafting notice: {e}")
-        traceback.print_exc()
-        return "NOTICE GENERATION FAILED due to AI Error."
+        # 2. THE FALLBACK (Saved the Demo)
+        print(f"[!] AI Failed ({e}). Switching to Fallback Template.")
+        
+        # Fill in the fallback template with real data
+        return FALLBACK_NOTICE_TEMPLATE.format(
+            date=violation_details.get('timestamp', 'Unknown Date'),
+            url=violation_details.get('url', 'Unknown URL'),
+            asset=violation_details.get('asset', 'Unknown Asset'),
+            location=violation_details.get('location', 'Unknown'),
+            evidence_hash=violation_details.get('evidence_hash', 'N/A'),
+            breach_type=violation_details.get('breach_type', 'General Infringement')
+        )
