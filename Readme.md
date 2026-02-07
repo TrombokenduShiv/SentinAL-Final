@@ -2,7 +2,7 @@
 
 > **Top 10 Finalist Project** - *Automated Digital Rights Management (DRM) for the Generative AI Era.*
 
-![SentinAL Dashboard](https://github.com/TrombokenduShiv/SentinAL-Final/blob/main/sentinel-frontend/public/dashboard-preview.jpeg?raw=true)
+![SentinAL Dashboard]([https://github.com/TrombokenduShiv/SentinAL-Final/blob/main/sentinel-frontend/public/dashboard-preview.jpeg?raw=true](https://github.com/TrombokenduShiv/SentinAL-Final/blob/main/dashboard-preview.jpeg))
 *(Upload your "Red Globe" screenshot to your repo and name it dashboard-preview.png to verify this link!)*
 
 ## 🚨 The Problem
