@@ -3,7 +3,7 @@
 > **Top 10 Finalist Project** - *Automated Digital Rights Management (DRM) for the Generative AI Era.*
 
 ![SentinAL Dashboard](dashboard-preview.jpeg)
-*(Upload your "Red Globe" screenshot to your repo and name it dashboard-preview.png to verify this link!)*
+
 
 ## 🚨 The Problem
 In the age of Generative AI, piracy is no longer just "downloading movies." Content is being remixed, deepfaked, and distributed across decentralized networks at lightning speed. Traditional watermarks are easily removed, and manual takedowns are too slow.
